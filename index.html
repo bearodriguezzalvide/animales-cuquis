@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Animales Cuquis">
+<meta name="theme-color" content="#FF8FB1">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<title>Animales Cuquis — Sumas y Restas</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { height:100%; }
+  body {
+    font-family: "Chalkboard SE", "Comic Sans MS", "Segoe UI", system-ui, sans-serif;
+    background: linear-gradient(160deg, #FFF0F7 0%, #F3EDFF 50%, #E8F8FF 100%);
+    color:#5A4A6A;
+    user-select:none; -webkit-user-select:none;
+    touch-action: manipulation;
+    overflow-x:hidden;
+  }
+  .screen { display:none; min-height:100%; padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom)); }
+  .screen.active { display:flex; flex-direction:column; align-items:center; }
+
+  /* ---------- PORTADA ---------- */
+  #screen-start { justify-content:center; gap:14px; text-align:center; }
+  .title { font-size: clamp(28px, 6vw, 44px); color:#E0529C; text-shadow: 2px 2px 0 #fff; }
+  .subtitle { font-size: clamp(15px, 3vw, 20px); color:#7A6A8A; max-width:520px; }
+  .anim-parade { font-size: clamp(28px, 6vw, 42px); letter-spacing:6px; }
+  .card {
+    background:rgba(255,255,255,.75); border-radius:24px; padding:16px 20px;
+    box-shadow: 0 6px 18px rgba(180,140,200,.18);
+    width:100%; max-width:560px;
+  }
+  .cfg-row { margin:10px 0; }
+  .cfg-label { font-size:15px; font-weight:bold; color:#9B59B6; margin-bottom:6px; display:block; text-align:left; }
+  .seg { display:flex; gap:8px; flex-wrap:wrap; }
+  .seg button {
+    flex:1; min-width:64px; padding:12px 8px; border:2px solid #F2C9DE; border-radius:16px;
+    background:#fff; font-family:inherit; font-size:16px; color:#7A6A8A; cursor:pointer;
+  }
+  .seg button.sel { background:#FF8FB1; border-color:#FF8FB1; color:#fff; font-weight:bold; transform:scale(1.04); }
+  input#playerName {
+    width:100%; padding:12px; border:2px solid #F2C9DE; border-radius:16px;
+    font-family:inherit; font-size:18px; text-align:center; color:#5A4A6A; background:#fff;
+  }
+  .btn-big {
+    font-family:inherit; font-size:24px; font-weight:bold; color:#fff; cursor:pointer;
+    background: linear-gradient(135deg,#FF8FB1,#B59CE8); border:none; border-radius:28px;
+    padding:18px 48px; box-shadow:0 8px 20px rgba(224,82,156,.35);
+  }
+  .btn-big:active { transform:scale(.96); }
+
+  /* ---------- RETOS (overlay) ---------- */
+  #challenge-intro {
+    position:fixed; inset:0; background:rgba(90,74,106,.55); display:none;
+    align-items:center; justify-content:center; z-index:50; padding:20px;
+  }
+  #challenge-intro.show { display:flex; }
+  .challenge-card {
+    background:#fff; border-radius:28px; padding:28px 24px; max-width:480px; width:100%;
+    text-align:center; box-shadow:0 12px 40px rgba(0,0,0,.25);
+  }
+  .challenge-card h2 { color:#E0529C; margin-bottom:14px; font-size:24px; }
+  .challenge-item {
+    background:#FFF0F7; border-radius:16px; padding:12px 14px; margin:10px 0;
+    font-size:17px; text-align:left;
+  }
+  .challenge-item .pts { color:#9B59B6; font-weight:bold; }
+
+  /* ---------- JUEGO ---------- */
+  #screen-game { gap:8px; }
+  .topbar { width:100%; max-width:560px; display:flex; justify-content:space-between; align-items:center; font-size:15px; color:#9B59B6; font-weight:bold; }
+  .progress-track { width:100%; max-width:560px; display:flex; flex-wrap:wrap; gap:2px; justify-content:center;
+    background:rgba(255,255,255,.6); border-radius:14px; padding:6px; }
+  .prog-slot { font-size:20px; filter:grayscale(1); opacity:.45; transition:all .3s; }
+  .prog-slot.won { filter:none; opacity:1; transform:scale(1.15); }
+  .prog-slot.lost { opacity:.25; }
+  .chips { width:100%; max-width:560px; display:flex; gap:6px; }
+  .chip {
+    flex:1; background:rgba(255,255,255,.75); border-radius:12px; padding:6px 8px;
+    font-size:12.5px; color:#7A6A8A; display:flex; align-items:center; gap:5px;
+  }
+  .chip .st { font-size:15px; }
+  .chip.done { background:#DFF7E8; color:#2E8B57; }
+  .chip.failed { background:#FBE3E3; color:#B05A5A; text-decoration:line-through; }
+
+  .op-zone { display:flex; align-items:center; justify-content:center; gap:18px; margin:4px 0; }
+  .op-animal { font-size: clamp(48px, 11vw, 84px); transition: transform .4s; }
+  .op-animal.happy { animation: bounce .6s ease 2; }
+  @keyframes bounce { 0%,100%{transform:translateY(0)} 40%{transform:translateY(-22px) scale(1.15)} }
+
+  .op-grid { display:inline-block; background:rgba(255,255,255,.85); border-radius:22px; padding:14px 22px;
+    box-shadow:0 6px 18px rgba(180,140,200,.18); }
+  .op-row { display:flex; justify-content:flex-end; }
+  .op-cell {
+    width: var(--cw, 52px); height: var(--cw, 52px); display:flex; align-items:center; justify-content:center;
+    font-size: calc(var(--cw, 52px) * .68); font-weight:bold; color:#5A4A6A;
+  }
+  .op-cell.sign { color:#E0529C; }
+  .op-line { height:4px; background:#B59CE8; border-radius:2px; margin:6px 0; }
+  .ans-row { display:flex; justify-content:flex-end; gap:4px; }
+  .ans-cell {
+    width: var(--cw, 52px); height: calc(var(--cw, 52px) * 1.08);
+    border:3px dashed #D9C6F0; border-radius:12px; background:#FBF8FF;
+    display:flex; align-items:center; justify-content:center;
+    font-size: calc(var(--cw, 52px) * .66); font-weight:bold; color:#8E44AD;
+  }
+  .ans-cell.active { border-style:solid; border-color:#FF8FB1; background:#FFF0F7; animation:pulse 1.1s infinite; }
+  @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(255,143,177,.5)} 50%{box-shadow:0 0 0 7px rgba(255,143,177,0)} }
+  .ans-cell.ok { border-style:solid; border-color:#5DBE8A; background:#DFF7E8; color:#2E8B57; }
+  .ans-cell.bad { border-style:solid; border-color:#E57373; background:#FBE3E3; color:#C0392B; animation:shake .45s; }
+  .ans-cell.fix { border-style:solid; border-color:#F0A84B; background:#FFF3E0; color:#D35400; }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-7px)} 40%,80%{transform:translateX(7px)} }
+
+  #feedback { min-height:34px; font-size:19px; font-weight:bold; text-align:center; }
+  #feedback.good { color:#2E8B57; }
+  #feedback.bad { color:#C0392B; }
+
+  .keypad { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; width:100%; max-width:380px; margin-top:auto; }
+  .keypad button {
+    font-family:inherit; font-size:30px; font-weight:bold; color:#5A4A6A;
+    background:#fff; border:none; border-radius:18px; padding:14px 0;
+    box-shadow:0 4px 0 #E8D9F2; cursor:pointer;
+  }
+  .keypad button:active { transform:translateY(3px); box-shadow:0 1px 0 #E8D9F2; }
+  .keypad .k-del { background:#FBE3E3; color:#C0392B; font-size:26px; }
+  .keypad .k-ok { background:#5DBE8A; color:#fff; font-size:24px; }
+  .keypad button:disabled { opacity:.4; }
+  #btn-next {
+    display:none; font-family:inherit; font-size:22px; font-weight:bold; color:#fff;
+    background:#B59CE8; border:none; border-radius:22px; padding:14px 40px; margin-top:auto;
+    box-shadow:0 6px 16px rgba(150,110,200,.4); cursor:pointer;
+  }
+
+  /* ---------- FINAL ---------- */
+  #screen-end { justify-content:center; gap:12px; text-align:center; }
+  .stars { font-size: clamp(44px, 10vw, 64px); letter-spacing:8px; }
+  .star-dim { filter:grayscale(1); opacity:.35; }
+  .rescued-row { font-size: clamp(24px, 5vw, 34px); line-height:1.5; max-width:520px; }
+  .score-table { width:100%; max-width:420px; font-size:17px; text-align:left; }
+  .score-table .row { display:flex; justify-content:space-between; padding:7px 4px; border-bottom:1px dashed #E8D9F2; }
+  .score-table .row.total { font-size:22px; font-weight:bold; color:#E0529C; border-bottom:none; }
+  #record-msg { font-size:17px; color:#9B59B6; font-weight:bold; min-height:24px; }
+  .new-record { animation: recordPop 1s ease infinite alternate; color:#E0529C !important; }
+  @keyframes recordPop { from{transform:scale(1)} to{transform:scale(1.08)} }
+
+  .confetti-piece { position:fixed; top:-30px; font-size:24px; z-index:60; pointer-events:none; animation:fall linear forwards; }
+  @keyframes fall { to { transform:translateY(110vh) rotate(540deg); } }
+</style>
+</head>
+<body>
+
+<!-- ============ PORTADA ============ -->
+<div class="screen active" id="screen-start">
+  <div class="anim-parade">🦊 🐰 🐼 🦄 🐨</div>
+  <h1 class="title">Animales Cuquis</h1>
+  <p class="subtitle">¡Los animales están atrapados! Resuelve las operaciones para rescatarlos 💪</p>
+  <div class="card">
+    <div class="cfg-row">
+      <label class="cfg-label" for="playerName">Jugadora</label>
+      <input id="playerName" value="Lola" maxlength="14">
+    </div>
+    <div class="cfg-row">
+      <span class="cfg-label">Operaciones</span>
+      <div class="seg" id="cfg-tipo">
+        <button data-v="suma">Sumas ➕</button>
+        <button data-v="resta">Restas ➖</button>
+        <button data-v="ambas" class="sel">Ambas 🔀</button>
+      </div>
+    </div>
+    <div class="cfg-row">
+      <span class="cfg-label">¿Cuántas por partida?</span>
+      <div class="seg" id="cfg-num">
+        <button data-v="5">5</button>
+        <button data-v="10" class="sel">10</button>
+        <button data-v="15">15</button>
+        <button data-v="20">20</button>
+        <button data-v="25">25</button>
+        <button data-v="30">30</button>
+      </div>
+    </div>
+    <div class="cfg-row">
+      <span class="cfg-label">Tamaño de los números</span>
+      <div class="seg" id="cfg-cifras">
+        <button data-v="1">1 cifra</button>
+        <button data-v="2">2 cifras</button>
+        <button data-v="3" class="sel">3 cifras</button>
+      </div>
+    </div>
+    <div class="cfg-row">
+      <span class="cfg-label">Llevadas</span>
+      <div class="seg" id="cfg-llevadas">
+        <button data-v="sin">Sin llevadas</button>
+        <button data-v="con">Con llevadas</button>
+        <button data-v="mixto" class="sel">Mixto</button>
+      </div>
+    </div>
+  </div>
+  <button class="btn-big" id="btn-play">¡A rescatar! 🚀</button>
+  <div id="best-banner" style="font-size:15px;color:#9B59B6;"></div>
+</div>
+
+<!-- ============ RETOS ============ -->
+<div id="challenge-intro">
+  <div class="challenge-card">
+    <h2>🎯 Retos de hoy</h2>
+    <div id="challenge-list"></div>
+    <button class="btn-big" id="btn-go" style="font-size:20px;padding:14px 36px;margin-top:10px;">¡Voy! 💖</button>
+  </div>
+</div>
+
+<!-- ============ JUEGO ============ -->
+<div class="screen" id="screen-game">
+  <div class="topbar">
+    <span id="op-counter"></span>
+    <span id="score-live">⭐ 0</span>
+  </div>
+  <div class="progress-track" id="progress-track"></div>
+  <div class="chips" id="chips"></div>
+  <div class="op-zone">
+    <div class="op-animal" id="op-animal">🦊</div>
+    <div class="op-grid" id="op-grid"></div>
+  </div>
+  <div id="feedback"></div>
+  <div class="keypad" id="keypad">
+    <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
+    <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
+    <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
+    <button class="k-del" data-k="del">⌫</button><button data-k="0">0</button><button class="k-ok" data-k="ok">✔</button>
+  </div>
+  <button id="btn-next">Seguir ➡️</button>
+</div>
+
+<!-- ============ FINAL ============ -->
+<div class="screen" id="screen-end">
+  <h1 class="title" id="end-title">¡Partida terminada!</h1>
+  <div class="stars" id="stars"></div>
+  <div class="rescued-row" id="rescued-row"></div>
+  <div class="card score-table" id="score-table"></div>
+  <div id="record-msg"></div>
+  <button class="btn-big" id="btn-again">Otra partida 🔁</button>
+</div>
+
+<script>
+"use strict";
+/* ================= DATOS ================= */
+const ANIMALS = ["🦊","🐰","🐼","🦄","🐨","🐶","🐱","🐹","🐥","🐧","🦝","🐻","🐯","🦁","🐮","🐷","🐸","🐙","🦋","🐞","🐢","🐬","🦔","🐿️","🦥","🦦","🐳","🦒","🐘","🦜"];
+const ANIMAL_NAMES = {"🦊":"al zorrito","🐰":"a la conejita","🐼":"al panda","🦄":"al unicornio","🐨":"al koala","🐶":"al perrito","🐱":"a la gatita","🐹":"al hámster","🐥":"al pollito","🐧":"al pingüino","🦝":"al mapache","🐻":"al osito","🐯":"al tigre","🦁":"al león","🐮":"a la vaquita","🐷":"al cerdito","🐸":"a la ranita","🐙":"al pulpito","🦋":"a la mariposa","🐞":"a la mariquita","🐢":"a la tortuga","🐬":"al delfín","🦔":"al erizo","🐿️":"a la ardilla","🦥":"al perezoso","🦦":"a la nutria","🐳":"a la ballenita","🦒":"a la jirafa","🐘":"al elefante","🦜":"al lorito"};
+
+/* ================= GENERADOR ================= */
+function rnd(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+function sumHasCarry(a, b) {
+  while (a > 0 || b > 0) {
+    if (a % 10 + b % 10 >= 10) return true;
+    a = Math.floor(a / 10); b = Math.floor(b / 10);
+  }
+  return false;
+}
+function subHasBorrow(a, b) { // a >= b
+  let borrow = 0, any = false;
+  while (a > 0 || b > 0) {
+    const da = a % 10 - borrow, db = b % 10;
+    if (da < db) { borrow = 1; any = true; } else { borrow = 0; }
+    a = Math.floor(a / 10); b = Math.floor(b / 10);
+  }
+  return any;
+}
+function numWithDigits(d) { return d === 1 ? rnd(1, 9) : rnd(Math.pow(10, d - 1), Math.pow(10, d) - 1); }
+
+// Genera una operación con control explícito de llevada.
+function genOp(tipo, cifras, wantCarry) {
+  const maxResult = Math.pow(10, cifras === 1 ? 2 : cifras) - 1; // 1 cifra: hasta 18 igualmente
+  for (let i = 0; i < 2000; i++) {
+    const relax = i > 1200; // si es imposible (p.ej. resta de 1 cifra con llevada), relajar
+    const bDigits = Math.random() < 0.7 ? cifras : Math.max(1, cifras - 1);
+    let a = numWithDigits(cifras), b = numWithDigits(bDigits);
+    if (tipo === "suma") {
+      const ans = a + b;
+      if (cifras === 3 && ans > maxResult) continue; // tope 999 como en el cole
+      if (!relax && sumHasCarry(a, b) !== wantCarry) continue;
+      return { tipo, a, b, ans };
+    } else {
+      if (b > a) [a, b] = [b, a];
+      const ans = a - b;
+      if (ans < 1) continue;
+      if (!relax && subHasBorrow(a, b) !== wantCarry) continue;
+      return { tipo, a, b, ans };
+    }
+  }
+  // último recurso (no debería llegar)
+  const a = numWithDigits(cifras), b = rnd(1, a - 1 > 0 ? a - 1 : 1);
+  return tipo === "suma" ? { tipo, a, b, ans: a + b } : { tipo, a, b, ans: a - b };
+}
+
+function genGame(cfg) {
+  const ops = [];
+  let prev = "";
+  for (let i = 0; i < cfg.num; i++) {
+    const tipo = cfg.tipo === "ambas" ? (Math.random() < 0.5 ? "suma" : "resta") : cfg.tipo;
+    const wantCarry = cfg.llevadas === "con" ? true : cfg.llevadas === "sin" ? false : Math.random() < 0.7;
+    let op, key, tries = 0;
+    do {
+      op = genOp(tipo, cfg.cifras, wantCarry);
+      key = op.tipo + op.a + "_" + op.b;
+      tries++;
+    } while (key === prev && tries < 10);
+    prev = key;
+    ops.push(op);
+  }
+  return ops;
+}
+
+/* ================= RETOS ================= */
+function buildChallenges(ops, cfg) {
+  const n = ops.length;
+  const nRestas = ops.filter(o => o.tipo === "resta").length;
+  const nSumas = ops.filter(o => o.tipo === "suma").length;
+  const streakGoal = Math.min(6, Math.max(3, Math.ceil(n / 3)));
+  const totalGoal = Math.max(3, Math.ceil(n * 0.8));
+  const pool = [];
+  pool.push({
+    id: "streak", text: `Rescata ${streakGoal} animales seguidos sin fallar 🔥`,
+    check: s => s.bestStreak >= streakGoal ? "done" : (s.answered === n && "failed") || "pending"
+  });
+  pool.push({
+    id: "total", text: `Consigue ${totalGoal} rescates en total 🏆`,
+    check: s => s.correct >= totalGoal ? "done" : (n - s.answered + s.correct < totalGoal ? "failed" : "pending")
+  });
+  if (nRestas >= 2) pool.push({
+    id: "restas", text: `Acierta todas las restas (hay ${nRestas}) ➖`,
+    check: s => s.failedResta ? "failed" : (s.answered === n ? "done" : "pending")
+  });
+  if (nSumas >= 2 && cfg.tipo === "ambas") pool.push({
+    id: "sumas", text: `Acierta todas las sumas (hay ${nSumas}) ➕`,
+    check: s => s.failedSuma ? "failed" : (s.answered === n ? "done" : "pending")
+  });
+  pool.push({
+    id: "first3", text: "Acierta las 3 primeras operaciones 🌟",
+    check: s => {
+      if (s.results.slice(0, 3).some(r => r === false)) return "failed";
+      return s.results.length >= 3 && s.results.slice(0, 3).every(r => r === true) ? "done" : "pending";
+    }
+  });
+  pool.push({
+    id: "fewFails", text: "Termina con menos de 2 fallos 🛡️",
+    check: s => s.fails >= 2 ? "failed" : (s.answered === n ? "done" : "pending")
+  });
+  // elegir 2 al azar
+  for (let i = pool.length - 1; i > 0; i--) { const j = rnd(0, i); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  return pool.slice(0, 2);
+}
+
+/* ================= SONIDO ================= */
+let audioCtx = null;
+function ensureAudio() {
+  if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+}
+function tone(freq, t0, dur, type, vol) {
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(vol, audioCtx.currentTime + t0);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + t0 + dur);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(audioCtx.currentTime + t0); o.stop(audioCtx.currentTime + t0 + dur + 0.05);
+}
+function soundOk() { if (!audioCtx) return; tone(660, 0, .15, "sine", .25); tone(880, .12, .15, "sine", .25); tone(1100, .24, .25, "sine", .25); }
+function soundBad() { if (!audioCtx) return; tone(300, 0, .2, "sawtooth", .12); tone(220, .18, .3, "sawtooth", .12); }
+function soundWin() { if (!audioCtx) return; [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, i * .13, .3, "sine", .22)); }
+
+/* ================= ESTADO ================= */
+const cfg = { tipo: "ambas", num: 10, cifras: 3, llevadas: "mixto" };
+let ops = [], idx = 0, state = null, challenges = [], entered = [], phase = "answer";
+let gameAnimals = [];
+
+const $ = id => document.getElementById(id);
+
+/* ---- portada: segmentos ---- */
+function wireSeg(id, key, isNum) {
+  $(id).addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    $(id).querySelectorAll("button").forEach(x => x.classList.remove("sel"));
+    b.classList.add("sel");
+    cfg[key] = isNum ? parseInt(b.dataset.v, 10) : b.dataset.v;
+  });
+}
+wireSeg("cfg-tipo", "tipo", false);
+wireSeg("cfg-num", "num", true);
+wireSeg("cfg-cifras", "cifras", true);
+wireSeg("cfg-llevadas", "llevadas", false);
+
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  $(id).classList.add("active");
+  window.scrollTo(0, 0);
+}
+
+/* ---- récord ---- */
+function loadBest() { try { return JSON.parse(localStorage.getItem("animales-cuquis-record")) || null; } catch (e) { return null; } }
+function saveBest(r) { try { localStorage.setItem("animales-cuquis-record", JSON.stringify(r)); } catch (e) {} }
+function paintBestBanner() {
+  const b = loadBest();
+  $("best-banner").textContent = b ? `🏅 Mejor puntuación: ${b.score} puntos (${b.name})` : "";
+}
+paintBestBanner();
+
+/* ================= EMPEZAR ================= */
+$("btn-play").addEventListener("click", () => {
+  ensureAudio();
+  ops = genGame(cfg);
+  idx = 0;
+  state = { answered: 0, correct: 0, fails: 0, streak: 0, bestStreak: 0,
+            streakBonus: 0, failedResta: false, failedSuma: false, results: [] };
+  challenges = buildChallenges(ops, cfg);
+  // animales de la partida
+  const pool = ANIMALS.slice();
+  for (let i = pool.length - 1; i > 0; i--) { const j = rnd(0, i); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  gameAnimals = pool.slice(0, ops.length);
+  // overlay de retos
+  $("challenge-list").innerHTML = challenges.map(c =>
+    `<div class="challenge-item">🎯 ${c.text} <span class="pts">+25 puntos</span></div>`).join("");
+  $("challenge-intro").classList.add("show");
+});
+
+$("btn-go").addEventListener("click", () => {
+  ensureAudio();
+  $("challenge-intro").classList.remove("show");
+  showScreen("screen-game");
+  buildProgress();
+  paintChips();
+  renderOp();
+});
+
+/* ================= RENDER JUEGO ================= */
+function buildProgress() {
+  $("progress-track").innerHTML = gameAnimals.map((a, i) =>
+    `<span class="prog-slot" id="slot-${i}">${a}</span>`).join("");
+}
+function paintChips() {
+  $("chips").innerHTML = challenges.map((c, i) => {
+    const st = c.check(state);
+    const icon = st === "done" ? "✅" : st === "failed" ? "❌" : "⏳";
+    return `<div class="chip ${st === "done" ? "done" : st === "failed" ? "failed" : ""}"><span class="st">${icon}</span>${c.text}</div>`;
+  }).join("");
+}
+function digitsOf(n) { return String(n).split("").map(Number); }
+
+function renderOp() {
+  const op = ops[idx];
+  phase = "answer"; entered = [];
+  $("op-counter").textContent = `Operación ${idx + 1} de ${ops.length}`;
+  $("score-live").textContent = `⭐ ${liveScore()}`;
+  $("op-animal").textContent = gameAnimals[idx];
+  $("op-animal").classList.remove("happy");
+  $("feedback").textContent = "";
+  $("feedback").className = "";
+  $("btn-next").style.display = "none";
+  $("keypad").style.display = "grid";
+
+  const aD = digitsOf(op.a), bD = digitsOf(op.b), ansLen = String(op.ans).length;
+  const cols = Math.max(aD.length, bD.length, ansLen);
+  // tamaño de celda según columnas (para que quepa en iPad mini también)
+  const cw = cols >= 4 ? 46 : cols === 3 ? 52 : 58;
+  $("op-grid").style.setProperty("--cw", cw + "px");
+
+  const padRow = (ds, sign) => {
+    let cells = "";
+    for (let i = 0; i < cols - ds.length; i++) cells += `<div class="op-cell"></div>`;
+    cells += ds.map(d => `<div class="op-cell">${d}</div>`).join("");
+    return `<div class="op-row"><div class="op-cell sign">${sign}</div>${cells}</div>`;
+  };
+  let ansCells = `<div class="op-row"><div class="op-cell"></div><div class="ans-row">`;
+  for (let i = 0; i < cols - ansLen; i++) ansCells += `<div class="op-cell"></div>`;
+  for (let i = 0; i < ansLen; i++) ansCells += `<div class="ans-cell" id="ac-${i}"></div>`;
+  ansCells += `</div></div>`;
+
+  $("op-grid").innerHTML =
+    padRow(aD, "") +
+    padRow(bD, op.tipo === "suma" ? "+" : "−") +
+    `<div class="op-line"></div>` + ansCells;
+  paintAnswer();
+}
+
+function paintAnswer() {
+  const ansLen = String(ops[idx].ans).length;
+  for (let i = 0; i < ansLen; i++) {
+    const cell = $("ac-" + i);
+    const fromRight = ansLen - 1 - i; // posición contando desde la derecha
+    cell.textContent = fromRight < entered.length ? entered[fromRight] : "";
+    cell.classList.toggle("active", phase === "answer" && fromRight === entered.length);
+  }
+  $("keypad").querySelector(".k-ok").disabled = entered.length !== ansLen;
+}
+
+/* ================= TECLADO ================= */
+$("keypad").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b || phase !== "answer") return;
+  ensureAudio();
+  const k = b.dataset.k;
+  const ansLen = String(ops[idx].ans).length;
+  if (k === "del") { entered.pop(); }
+  else if (k === "ok") { if (entered.length === ansLen) check(); return; }
+  else if (entered.length < ansLen) { entered.push(parseInt(k, 10)); }
+  paintAnswer();
+});
+
+function liveScore() {
+  let s = state.correct * 10 + state.streakBonus;
+  challenges.forEach(c => { if (c.check(state) === "done") s += 25; });
+  return s;
+}
+
+/* ================= COMPROBAR ================= */
+function check() {
+  const op = ops[idx];
+  let value = 0;
+  for (let i = 0; i < entered.length; i++) value += entered[i] * Math.pow(10, i);
+  const ok = value === op.ans;
+  phase = "feedback";
+  state.answered++;
+  state.results.push(ok);
+  const ansLen = String(op.ans).length;
+  const ansDigits = digitsOf(op.ans);
+
+  if (ok) {
+    state.correct++; state.streak++;
+    state.bestStreak = Math.max(state.bestStreak, state.streak);
+    if (state.streak >= 3) state.streakBonus += 5;
+    for (let i = 0; i < ansLen; i++) { $("ac-" + i).classList.remove("active"); $("ac-" + i).classList.add("ok"); }
+    $("slot-" + idx).classList.add("won");
+    $("op-animal").classList.add("happy");
+    const extra = state.streak >= 3 ? ` 🔥 ¡Racha de ${state.streak}!` : "";
+    $("feedback").textContent = `¡Has rescatado ${ANIMAL_NAMES[gameAnimals[idx]] || "a este amigo"}!${extra}`;
+    $("feedback").className = "good";
+    soundOk();
+    setTimeout(next, 1400);
+  } else {
+    state.fails++; state.streak = 0;
+    if (op.tipo === "resta") state.failedResta = true; else state.failedSuma = true;
+    $("slot-" + idx).classList.add("lost");
+    for (let i = 0; i < ansLen; i++) { $("ac-" + i).classList.remove("active"); $("ac-" + i).classList.add("bad"); }
+    soundBad();
+    // tras la sacudida, mostrar la corrección
+    setTimeout(() => {
+      for (let i = 0; i < ansLen; i++) {
+        const c = $("ac-" + i);
+        c.classList.remove("bad");
+        c.classList.add("fix");
+        c.textContent = ansDigits[i];
+      }
+      $("feedback").textContent = `Casi... la respuesta era ${op.ans}. ¡La siguiente la rescatas! 💪`;
+      $("feedback").className = "bad";
+      $("keypad").style.display = "none";
+      $("btn-next").style.display = "block";
+    }, 600);
+  }
+  paintChips();
+  $("score-live").textContent = `⭐ ${liveScore()}`;
+}
+
+$("btn-next").addEventListener("click", next);
+
+function next() {
+  idx++;
+  if (idx < ops.length) renderOp();
+  else endGame();
+}
+
+/* ================= FINAL ================= */
+function endGame() {
+  const name = ($("playerName").value.trim() || "Lola");
+  const base = state.correct * 10;
+  let challengeBonus = 0;
+  const finalChips = challenges.map(c => {
+    const st = c.check(state);
+    if (st === "done") challengeBonus += 25;
+    return { text: c.text, done: st === "done" };
+  });
+  const total = base + state.streakBonus + challengeBonus;
+  const pct = state.correct / ops.length;
+  const nStars = pct >= 0.9 ? 3 : pct >= 0.65 ? 2 : 1;
+
+  $("end-title").textContent = pct === 1 ? `¡PERFECTO, ${name}! 🎉` : pct >= 0.65 ? `¡Muy bien, ${name}!` : `¡Buen intento, ${name}!`;
+  $("stars").innerHTML = [0, 1, 2].map(i => `<span class="${i < nStars ? "" : "star-dim"}">⭐</span>`).join("");
+  $("rescued-row").innerHTML = gameAnimals.map((a, i) =>
+    `<span style="${state.results[i] ? "" : "filter:grayscale(1);opacity:.3;"}">${a}</span>`).join(" ");
+
+  let rows = `<div class="row"><span>🐾 Rescates (${state.correct} × 10)</span><span>${base}</span></div>`;
+  rows += `<div class="row"><span>🔥 Bonus de rachas</span><span>+${state.streakBonus}</span></div>`;
+  finalChips.forEach(c => {
+    rows += `<div class="row"><span>${c.done ? "✅" : "❌"} ${c.text}</span><span>${c.done ? "+25" : "0"}</span></div>`;
+  });
+  rows += `<div class="row total"><span>Total</span><span>${total} puntos</span></div>`;
+  $("score-table").innerHTML = rows;
+
+  const best = loadBest();
+  if (!best || total > best.score) {
+    saveBest({ score: total, name, date: new Date().toISOString().slice(0, 10) });
+    $("record-msg").textContent = "🏅 ¡¡NUEVO RÉCORD!! 🏅";
+    $("record-msg").className = "new-record";
+  } else {
+    $("record-msg").textContent = `🏅 Récord: ${best.score} puntos`;
+    $("record-msg").className = "";
+  }
+
+  showScreen("screen-end");
+  if (nStars >= 2) { soundWin(); confetti(nStars === 3 ? 40 : 18); }
+}
+
+function confetti(n) {
+  const emo = ["🎉", "💖", "⭐", "🌸", "✨", "🦄"];
+  for (let i = 0; i < n; i++) {
+    const el = document.createElement("div");
+    el.className = "confetti-piece";
+    el.textContent = emo[rnd(0, emo.length - 1)];
+    el.style.left = rnd(0, 96) + "vw";
+    el.style.animationDuration = (2 + Math.random() * 2.5) + "s";
+    el.style.animationDelay = (Math.random() * 1.2) + "s";
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 6000);
+  }
+}
+
+$("btn-again").addEventListener("click", () => { paintBestBanner(); showScreen("screen-start"); });
+
+/* ================= PWA ================= */
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("./service-worker.js").catch(() => {}));
+}
+</script>
+</body>
+</html>
